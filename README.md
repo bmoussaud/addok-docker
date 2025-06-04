@@ -86,3 +86,61 @@ curl "http://localhost:7878/search?q=1+rue+de+la+paix+paris"
 | ----- | ----- |
 | `WORKERS` | Nombre de workers addok à lancer. Valeur par défaut : `1`. |
 | `WORKER_TIMEOUT` | [Durée maximale allouée à un worker](http://docs.gunicorn.org/en/0.17.2/configure.html#timeout) pour effectuer une opération de géocodage. Valeur par défaut : `30`. |
+
+
+
+
+ 
+
+# Azure Déploiement
+
+## Architecture déployée (`infra/main.bicep`)
+
+Le fichier `main.bicep` provisionne automatiquement l’infrastructure suivante sur Azure :
+- **Azure Container Apps Environment** : Environnement d’exécution pour les applications conteneurisées.
+- **Container Apps** :
+  - `addok` (service principal exposé sur le port 7878)
+  - `addok-redis` (service Redis pour Addok)
+- **Stockage Azure** :
+  - Compte de stockage pour les données Addok et les logs, avec partages de fichiers Azure (Azure File Share) montés dans les conteneurs.
+- **Log Analytics Workspace** & **Application Insights** : Pour la collecte et la supervision des logs et métriques.
+
+## Procédure de déploiement
+
+1. **Authentification Azure**
+   ```bash
+   azd auth login
+   ```
+
+2. **Déploiement de l’infrastructure**
+   ```bash
+   azd up
+   ```
+   Cette commande déploie tous les composants définis dans `infra/main.bicep`.
+
+3. **Chargement des données dans le stockage Azure**
+   Récupérez les variables d’environnement générées :
+   ```bash
+   AZURE_RESOURCE_GROUP=$(azd env get-value AZURE_RESOURCE_GROUP)
+   AZURE_STORAGE_ACCOUNT=$(azd env get-value STORAGE_ACCOUNT_NAME)
+   ./upload.sh $AZURE_RESOURCE_GROUP $AZURE_STORAGE_ACCOUNT
+   ```
+   Le script `upload.sh` charge les données nécessaires dans le partage de fichiers Azure.
+
+4. **Récupérer l’URL publique de l’API Addok**
+   ```bash
+   ADDOK_FQDN=$(azd env get-value ADDOK_FQDN)
+   curl "https://${ADDOK_FQDN}/search?q=1+rue+de+la+paix+paris"
+   ```
+
+## Personnalisation
+
+Les paramètres principaux (nombre de workers, timeout, logs, etc.) sont configurables dans le fichier Bicep via les paramètres :
+- `WORKERS`
+- `WORKER_TIMEOUT`
+- `LOG_QUERIES`
+- `LOG_NOT_FOUND`
+- `SLOW_QUERIES`
+
+Vous pouvez les ajuster dans le fichier `main.parameters.json` avant le déploiement.
+

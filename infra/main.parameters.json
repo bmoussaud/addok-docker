@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location": { "value": "${AZURE_LOCATION}" },
+    "resourceGroupName": { "value": "rg-${AZURE_ENV_NAME}" },
+    "WORKERS": { "value": 1 },
+    "WORKER_TIMEOUT": { "value": 30 },
+    "LOG_QUERIES": { "value": 1 },
+    "LOG_NOT_FOUND": { "value": 1 },
+    "SLOW_QUERIES": { "value": 200 }
+  }
+}

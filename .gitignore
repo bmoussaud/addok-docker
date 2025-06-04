@@ -33,3 +33,6 @@ Temporary Items
 /dist
 /data
 /logs
+*.zip
+*.rdb
+
