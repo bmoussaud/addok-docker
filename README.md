@@ -127,7 +127,17 @@ Le fichier `main.bicep` provisionne automatiquement l’infrastructure suivante 
    ```
    Le script `upload.sh` charge les données nécessaires dans le partage de fichiers Azure.
 
-4. **Récupérer l’URL publique de l’API Addok**
+5. **Redémarrage du service**
+   
+   ```bash
+   AZURE_RESOURCE_GROUP=$(azd env get-value AZURE_RESOURCE_GROUP)
+   az login
+   az containerapp update --name addokapp -g $AZURE_RESOURCE_GROUP --set-env-vars RESTART_TRIGGER=$(date +%s) --container-name addok
+   # Test l'etat du service
+   az containerapp revision list -n addokapp -g $AZURE_RESOURCE_GROUP --output table
+   ```
+
+6. **Récupérer l’URL publique de l’API Addok**
    ```bash
    ADDOK_FQDN=$(azd env get-value ADDOK_FQDN)
    curl "https://${ADDOK_FQDN}/search?q=1+rue+de+la+paix+paris"
