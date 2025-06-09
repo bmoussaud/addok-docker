@@ -210,19 +210,12 @@ Ce guide explique comment déployer l’infrastructure Addok (équivalent du fic
 
 ---
 
-## 6. Créer un environnement Azure Container Apps
-
-- Accédez à **Container Apps Environments** > **Créer**.
-- Renseignez le nom, la région, rattachez le Log Analytics Workspace.
-- ![Capture d’écran - Environnement Container Apps](screenshots/06-container-env.png)
-
----
-
 ## 7. Créer l’application Container App principale (`addokapp`)
 
 - Accédez à **Container Apps** > **Créer**.
 - Creer un nouvel environement 
 - Ajoutez le conteneur `etalab/addok` utisant le Docker Hub
+   - image alternative pour la configuration : mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
 - Configurez les variables d’environnement (`WORKERS`, `WORKER_TIMEOUT`, etc.).
 - Configurez l’ingress (port 7878, public).
 - Ajoutez les montages de volumes Azure File Share (`addokfileshare` et `addoklogfileshare`) aux bons chemins (`/data`, `/etc/addok`, `/logs`).
@@ -236,6 +229,7 @@ Ce guide explique comment déployer l’infrastructure Addok (équivalent du fic
 ## 8. Ajouter le conteneur Redis (`addok-redis`) dans la même Container App
 
 - Ajoutez le conteneur `etalab/addok-redis`. Aller dans le Container `addokapp`, `Containers`, `Créer un nouveau container`. 
+   - image alternative pour la configuration : mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
 - Configurez les probes sur le port 6379.
 - Montez le volume Azure File Share sur `/data`.
 - ![Capture d’écran - Container App Redis](screenshots/08-redis-app.png)
