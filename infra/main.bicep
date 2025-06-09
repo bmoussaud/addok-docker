@@ -72,7 +72,7 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
       azureFile: {
         accountName: addokData.name
         accountKey: addokData.listKeys().keys[0].value
-        accessMode: 'ReadWrite'
+        accessMode: 'ReadOnly'
         shareName: 'addokfileshare'
       }
     }

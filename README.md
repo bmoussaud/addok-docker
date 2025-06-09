@@ -154,3 +154,151 @@ Les paramètres principaux (nombre de workers, timeout, logs, etc.) sont configu
 
 Vous pouvez les ajuster dans le fichier `main.parameters.json` avant le déploiement.
 
+
+# Déploiement Addok sur Azure via le Portail Azure
+
+Ce guide explique comment déployer l’infrastructure Addok (équivalent du fichier `main.bicep`) en utilisant le portail Azure.
+
+---
+
+## 1. Créer un groupe de ressources
+
+- Accédez à **Groupes de ressources** > **Créer**.
+- Renseignez le nom et la région.
+- ![Capture d’écran - Création groupe de ressources](screenshots/01-resource-group.png)
+
+---
+
+## 2. Créer un Log Analytics Workspace
+
+- Accédez à **Log Analytics workspaces** > **Créer**.
+- Remplissez les champs requis.
+- ![Capture d’écran - Log Analytics](screenshots/02-log-analytics.png)
+
+---
+
+## 3. Créer une Application Insights
+
+- Accédez à **Application Insights** > **Créer**.
+- Sélectionnez le même groupe de ressources et la même région.
+- Liez-le au Log Analytics Workspace créé précédemment.
+- ![Capture d’écran - Application Insights](screenshots/03-app-insights.png)
+
+---
+
+## 4. Créer un compte de stockage
+
+- Accédez à **Comptes de stockage** > **Créer**.
+- Choisissez le type **StorageV2** et activez **Large file shares**.
+- Primary Service: **Azure Files**
+- Performance **Standard**
+- Option par défault.
+- Deuxieme Page: 
+   - `Allow enabling anonymous access on individual containers`
+- ![Capture d’écran - Compte de stockage](screenshots/04-storage-account.png)
+- ![Capture d’écran - Compte de stockage 2](screenshots/04-storage-account-2.png)
+
+---
+
+## 5. Créer deux Azure File Shares
+
+- Dans le compte de stockage, allez dans **Partages de fichiers** > **Ajouter** :
+  - `addokfileshare` (quota 10 Go)
+  - `addoklogfileshare` (quota 10 Go)
+- Décoche `Backup`
+- ![Capture d’écran - File Share](screenshots/05-file-share.png)
+
+---
+
+## 6. Créer un environnement Azure Container Apps
+
+- Accédez à **Container Apps Environments** > **Créer**.
+- Renseignez le nom, la région, rattachez le Log Analytics Workspace.
+- ![Capture d’écran - Environnement Container Apps](screenshots/06-container-env.png)
+
+---
+
+## 7. Créer l’application Container App principale (`addokapp`)
+
+- Accédez à **Container Apps** > **Créer**.
+- Creer un nouvel environement 
+- Ajoutez le conteneur `etalab/addok` utisant le Docker Hub
+- Configurez les variables d’environnement (`WORKERS`, `WORKER_TIMEOUT`, etc.).
+- Configurez l’ingress (port 7878, public).
+- Ajoutez les montages de volumes Azure File Share (`addokfileshare` et `addoklogfileshare`) aux bons chemins (`/data`, `/etc/addok`, `/logs`).
+- Ajoutez les probes de démarrage, liveness, readiness sur le port 7878.
+- ![Capture d’écran - Environnement Container Apps](screenshots/06-container-env.png)
+- ![Capture d’écran - Container App Addok](screenshots/07-addok-app.png)
+- ![Capture d’écran - Container App Addok - 2](screenshots/07-addok-app-2.png)
+- ![Capture d’écran - Container App Addok - ingress](screenshots/07-addok-app-3.png)
+---
+
+## 8. Ajouter le conteneur Redis (`addok-redis`) dans la même Container App
+
+- Ajoutez le conteneur `etalab/addok-redis`. Aller dans le Container `addokapp`, `Containers`, `Créer un nouveau container`. 
+- Configurez les probes sur le port 6379.
+- Montez le volume Azure File Share sur `/data`.
+- ![Capture d’écran - Container App Redis](screenshots/08-redis-app.png)
+---
+
+## 10. Ajouter les Azure Files à l'environment
+
+- Recuperer l'`access key` du Storage Account 
+- Allez dans l'environement Container Apps
+- Allez dans `Azure Files`
+- Ajouter SMB
+   - `addokfileshare` Read 
+   - `addoklogfileshare` Read Write
+- ![Capture d’écran - Access Key](screenshots/09-access-key.png)
+- ![Capture d’écran - Files Key](screenshots/09-env-file.png)
+
+## 9. Configurer le scaling et les ressources
+
+- Définissez les ressources CPU/mémoire pour chaque conteneur.
+- Définissez le nombre de réplicas min/max.
+- ![Capture d’écran - Scaling](screenshots/09-scaling.png)
+
+---
+
+## 10. Récupérer l’URL publique de l’application
+
+- Une fois déployée, l’URL publique (FQDN) sera affichée dans la configuration d’ingress de la Container App.
+- ![Capture d’écran - FQDN](screenshots/10-fqdn.png)
+
+---
+
+## Chargement des données dans Azure File Share via le portail Azure
+
+1. **Téléchargez le fichier de données**
+   - Si vous ne l’avez pas déjà, téléchargez le fichier [`addok-france-bundle.zip`](addok-france-bundle.zip) depuis :  
+     [https://adresse.data.gouv.fr/data/ban/adresses/latest/addok/addok-france-bundle.zip](https://adresse.data.gouv.fr/data/ban/adresses/latest/addok/addok-france-bundle.zip)
+
+2. **Décompressez le fichier**
+   - Décompressez l’archive dans un dossier local nommé `addok-data`.
+   - Vous obtiendrez au moins les fichiers suivants :
+     - `addok.conf`
+     - `dump.rdb`
+     - `addok.db`
+
+3. **Accédez à votre compte de stockage dans le portail Azure**
+   - Ouvrez le portail Azure.
+   - Accédez à votre **Compte de stockage** utilisé pour Addok.
+   - Dans le menu, cliquez sur **Partages de fichiers** puis sur le partage `addokfileshare`.
+
+4. **Créez les dossiers nécessaires**
+   - Dans le partage de fichiers, créez les dossiers suivants si besoin :
+     - `addok`
+     - `redis`
+     - `data`
+
+5. **Chargez les fichiers dans les bons dossiers**
+   - Dans le dossier `addok`, chargez le fichier `addok.conf`.
+   - Dans le dossier `redis`, chargez le fichier `dump.rdb`.
+   - Dans le dossier `data`, chargez le fichier `addok.db`.
+
+   *(Utilisez le bouton "Charger" dans l’interface Azure pour chaque fichier.)*
+
+6. **Vérifiez que tous les fichiers sont bien présents dans les bons dossiers.**
+
+
+
