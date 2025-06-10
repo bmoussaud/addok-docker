@@ -1,0 +1,13 @@
+# Terraform variables file for Addok deployment
+# Copy this file and customize the values for your deployment
+
+# Required variables - these should be set via environment variables or terraform.tfvars
+environment_name = "addok-dev"
+location         = "East US"
+
+# Optional variables with defaults
+workers        = 1
+worker_timeout = 30
+log_queries    = 1
+log_not_found  = 1
+slow_queries   = 200

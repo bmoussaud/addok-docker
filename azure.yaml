@@ -1,3 +1,15 @@
 # Azure Developer CLI configuration for Addok
 name: addok
 
+# Infrastructure configuration
+infra:
+  provider: terraform
+  path: infra
+
+# Services configuration  
+services:
+  addok:
+    project: .
+    language: docker
+    host: containerapp
+
