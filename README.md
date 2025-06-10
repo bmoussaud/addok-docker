@@ -215,8 +215,15 @@ Ce guide explique comment déployer l’infrastructure Addok (équivalent du fic
 - Accédez à **Container Apps** > **Créer**.
 - Creer un nouvel environement 
 - Ajoutez le conteneur `etalab/addok` utisant le Docker Hub
-   - image alternative pour la configuration : mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
-- Configurez les variables d’environnement (`WORKERS`, `WORKER_TIMEOUT`, etc.).
+   - image alternative pour la configuration : mavilleg/acarevision-helloworld:acarevision-hellowold
+- Configurez les variables d’environnement 
+   - `WORKERS`:`1`
+   - `WORKER_TIMEOUT`: `30`
+   - `LOG_QUERIES`: `1`
+   - `LOG_NOT_FOUND`: `1`
+   - `SLOW_QUERIES`: `200`
+   - `REDIS_HOST`: `localhost`
+   - `PORT`:`7878`
 - Configurez l’ingress (port 7878, public).
 - Ajoutez les montages de volumes Azure File Share (`addokfileshare` et `addoklogfileshare`) aux bons chemins (`/data`, `/etc/addok`, `/logs`).
 - Ajoutez les probes de démarrage, liveness, readiness sur le port 7878.
@@ -230,7 +237,7 @@ Ce guide explique comment déployer l’infrastructure Addok (équivalent du fic
 
 - Ajoutez le conteneur `etalab/addok-redis`. Aller dans le Container `addokapp`, `Containers`, `Créer un nouveau container`. 
    - image alternative pour la configuration : mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
-- Configurez les probes sur le port 6379.
+- Configurez les probes sur le port 6379 et mettre la variable d'env PORT=6379
 - Montez le volume Azure File Share sur `/data`.
 - ![Capture d’écran - Container App Redis](screenshots/08-redis-app.png)
 ---
@@ -245,6 +252,41 @@ Ce guide explique comment déployer l’infrastructure Addok (équivalent du fic
    - `addoklogfileshare` Read Write
 - ![Capture d’écran - Access Key](screenshots/09-access-key.png)
 - ![Capture d’écran - Files Key](screenshots/09-env-file.png)
+
+# 11. Ajouter les volumes aux containers:
+
+- lancer la commande `az containerapp show -n $APP_NAME -g $RESOURCE_GROUP_NAME -o yaml > app.yaml`
+- Editer le fichier pour ajouter une section volume:
+```yaml
+   volumes:
+    - name: share-volume
+      storageName: addokfileshare
+      storageType: AzureFile
+    - name: logs-volumes
+      storageName: addoklogfileshare
+      storageType: AzureFile
+```
+- Editer le fichier pour ajouter pour chaque container le `volumeMount` suivants
+
+```yaml
+- name: addokapp
+  volumeMounts:
+   - mountPath: /data
+     volumeName: share-volume
+     subPath: data
+   - mountPath: /etc/addok
+     volumeName: share-volume
+     subPath: addock
+   - mountPath: /log
+     volumeName: logs-volumes
+....
+- name: addokapp
+  volumeMounts:
+   - volumeName: 'share-volume'
+     mountPath: '/data'
+     subPath: 'redis'
+```
+- lancer la commande pour mettre a jour le container `az containerapp update -n $APP_NAME -g $RESOURCE_GROUP_NAME --yaml app.yaml`
 
 ## 9. Configurer le scaling et les ressources
 
