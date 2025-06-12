@@ -118,6 +118,23 @@ Le fichier `main.bicep` provisionne automatiquement l’infrastructure suivante 
    ```
    Cette commande déploie tous les composants définis dans `infra/main.bicep`.
 
+3. **Import des images dans l'azure container registry*
+Pour importer l’image Docker Addok dans votre Azure Container Registry (ACR), utilisez le script `import_images.sh` fourni dans ce dépôt. Ce script télécharge l’image depuis Docker Hub, la tague pour votre registre, puis la pousse dans votre ACR.
+
+```bash
+# Syntaxe : ./import_images.sh <nom-acr>
+./import_images.sh <nom-de-votre-acr>
+```
+
+Remplacez `<nom-de-votre-acr>` par le nom de votre registre (sans le suffixe `.azurecr.io`).  
+Exemple : si votre ACR s’appelle `monaddokacr`, la commande sera :
+
+```bash
+./import_images.sh monaddokacr
+```
+
+L’image sera alors disponible dans votre registre Azure et pourra être utilisée par vos déploiements.
+
 3. **Chargement des données dans le stockage Azure**
    Récupérez les variables d’environnement générées :
    ```bash

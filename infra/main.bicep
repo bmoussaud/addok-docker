@@ -49,6 +49,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
   name: environmentName
   location: location
+
   properties: {
     appLogsConfiguration: {
       destination: 'log-analytics'
@@ -128,35 +129,79 @@ resource addokLogFileShare 'Microsoft.Storage/storageAccounts/fileServices/share
   }
 }
 
+resource addokRegistry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
+  name: 'addok${resourceToken}reg'
+  location: location
+  sku: {
+    name: 'Basic'
+  }
+  properties: {
+    adminUserEnabled: true
+    publicNetworkAccess: 'Enabled'
+  }
+}
 
 
-// Container App: addok
-resource addokApp 'Microsoft.App/containerApps@2024-03-01' = {
+
+resource addocAcrPull 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = {
+  name: 'addock-acr-pull'
+  location: location
+}
+
+@description('This allows the managed identity of the container app to access the registry, note scope is applied to the wider ResourceGroup not the ACR')
+resource uaiRbacAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, addocAcrPull.id, 'ACR Pull Role RG')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: addocAcrPull.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   name: 'addokapp'
   location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${addocAcrPull.id}': {}
+    }
+  }
   properties: {
     managedEnvironmentId: containerEnv.id
     workloadProfileName: 'appProfile'
+    
     configuration: {
       ingress: {
         external: true
         targetPort: 7878
       }
+      registries: [
+        {
+          identity: addocAcrPull.id
+          server: addokRegistry.properties.loginServer
+        }
+      ]
+
     }
     template: {
       containers: [
         {
           name: 'addok'
-          image: 'etalab/addok'
+          image: '${addokRegistry.properties.loginServer}/etalab/addok'
           env: [
             { name: 'WORKERS', value: string(WORKERS) }
             { name: 'WORKER_TIMEOUT', value: string(WORKER_TIMEOUT) }
             { name: 'LOG_QUERIES', value: string(LOG_QUERIES)}
             { name: 'LOG_NOT_FOUND', value: string(LOG_NOT_FOUND) }
             { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
-            { name: 'REDIS_HOST', value: 'localhost' }
+            { name: 'REDIS_HOST', value: 'addokredisapp' }
             { name: 'REDIS_PORT', value: '6379' }
-    
+            { name: 'SQLITE_DB_PATH', value: '/tmp/addok.db' }
+            { name: 'ADDOK_CONFIG_PATH', value: '/etc/addok/addok.cfg' }
+            { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
+            { name: 'ADDOK_LOG_LEVEL', value: 'DEBUG' }
           ]
           resources: {
             cpu: 1
@@ -211,14 +256,65 @@ resource addokApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
           ]
         }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 1
+      }
+      volumes: [
+        {
+          name: 'share-volume'
+          storageType: 'AzureFile'
+          storageName: 'addokfileshare'
+        }
+        {
+          name: 'logs-volume'
+          storageType: 'AzureFile'
+          storageName: 'addoklogfileshare'
+        }
+      ]
+    }
+  }
+ 
+  dependsOn: [
+    containerEnv::addoklogfileshare
+    containerEnv::addokfileshare
+  ]
+}
+
+resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'addokredisapp'
+  location: location
+   identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${addocAcrPull.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerEnv.id
+    workloadProfileName: 'appProfile'
+    configuration: {
+      ingress: {
+        external: false
+        targetPort: 6379
+      }
+      registries: [
+        {
+          identity: addocAcrPull.id
+          server: addokRegistry.properties.loginServer
+        }
+      ]
+    }
+    template: {
+      containers: [
         {
           name: 'addok-redis'
-          image: 'etalab/addok-redis'
+          image: '${addokRegistry.properties.loginServer}/etalab/addok-redis'
           resources: {
-            cpu: 2
-            memory: '6.0Gi'
+            cpu: 1
+            memory: '2.0Gi'
           }
-         
           probes: [
             {
               type: 'Startup'
@@ -270,11 +366,6 @@ resource addokApp 'Microsoft.App/containerApps@2024-03-01' = {
           storageType: 'AzureFile'
           storageName: 'addokfileshare'
         }
-        {
-          name: 'logs-volume'
-          storageType: 'AzureFile'
-          storageName: 'addoklogfileshare'
-        }
       ]
     }
   }
@@ -284,7 +375,6 @@ resource addokApp 'Microsoft.App/containerApps@2024-03-01' = {
   ]
 }
 
-
-
 output ADDOK_FQDN string = addokApp.properties.configuration.ingress.fqdn
 output STORAGE_ACCOUNT_NAME string = addokData.name
+output ACR_NAME string = addokRegistry.name
