@@ -3,13 +3,13 @@ name: addok
 
 # Infrastructure configuration
 infra:
-  provider: terraform
-  path: infra
+#  provider: terraform
+#  path: infra
 
 # Services configuration  
-services:
-  addok:
-    project: .
-    language: docker
-    host: containerapp
+#services:
+#  addok:
+#    project: .
+#    language: docker
+#    host: containerapp
 

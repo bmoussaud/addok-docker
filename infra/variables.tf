@@ -42,3 +42,8 @@ variable "slow_queries" {
   type        = number
   default     = 200
 }
+
+variable "subscription_id" {
+  description = "The Azure Subscription ID"
+  type        = string
+}

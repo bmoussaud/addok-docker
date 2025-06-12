@@ -20,8 +20,8 @@ terraform {
 }
 
 provider "azurerm" {
-  
   features {}
+  subscription_id = var.subscription_id
 }
 
 # Generate a unique resource token

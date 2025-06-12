@@ -36,3 +36,5 @@ Temporary Items
 *.zip
 *.rdb
 
+addok/src
+infra/.terraform.tfstate.lock.info

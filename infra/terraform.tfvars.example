@@ -11,3 +11,4 @@ worker_timeout = 30
 log_queries    = 1
 log_not_found  = 1
 slow_queries   = 200
+subscription_id = "xxxx-"
