@@ -73,7 +73,7 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
       azureFile: {
         accountName: addokData.name
         accountKey: addokData.listKeys().keys[0].value
-        accessMode: 'ReadOnly'
+        accessMode: 'ReadWrite'
         shareName: 'addokfileshare'
       }
     }
@@ -176,6 +176,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
       ingress: {
         external: true
         targetPort: 7878
+       
       }
       registries: [
         {
@@ -196,7 +197,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'LOG_QUERIES', value: string(LOG_QUERIES)}
             { name: 'LOG_NOT_FOUND', value: string(LOG_NOT_FOUND) }
             { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
-            { name: 'REDIS_HOST', value: 'addokredisapp' }
+            { name: 'REDIS_HOST', value: addokRedisApp.name }
             { name: 'REDIS_PORT', value: '6379' }
             { name: 'SQLITE_DB_PATH', value: '/tmp/addok.db' }
             { name: 'ADDOK_CONFIG_PATH', value: '/etc/addok/addok.cfg' }
@@ -240,11 +241,11 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             }
           ]
           volumeMounts: [
-            {
+            /* {
               volumeName: 'share-volume'
               mountPath: '/data'
               subPath: 'data'
-            }
+            } */
             {
               volumeName: 'share-volume'
               mountPath: '/etc/addok'
@@ -298,6 +299,7 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
       ingress: {
         external: false
         targetPort: 6379
+        transport: 'tcp'
       }
       registries: [
         {
@@ -347,13 +349,13 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
               }
             }
           ]
-          volumeMounts: [
+          /* volumeMounts: [
             {
               volumeName: 'share-volume'
               mountPath: '/data'
               subPath: 'redis'
             }
-          ]
+          ] */
         }
       ]
       scale: {
@@ -365,6 +367,53 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'share-volume'
           storageType: 'AzureFile'
           storageName: 'addokfileshare'
+        }
+      ]
+    }
+  }
+  dependsOn: [
+    containerEnv::addoklogfileshare
+    containerEnv::addokfileshare
+  ]
+}
+
+resource ngnix 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'ngnix'
+  location: location
+   identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${addocAcrPull.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerEnv.id
+    workloadProfileName: 'appProfile'
+    configuration: {
+      ingress: {
+        external: false
+        targetPort: 80
+      }
+      registries: [
+        {
+          identity: addocAcrPull.id
+          server: addokRegistry.properties.loginServer
+        }
+      ]
+    }
+    template: {
+      scale: {
+        minReplicas: 1
+        maxReplicas: 1
+      }
+      containers: [
+        {
+          name: 'ngnix'
+          image: '${addokRegistry.properties.loginServer}/etalab/nginx'
+          resources: {
+            cpu: 1
+            memory: '2.0Gi'
+          }
         }
       ]
     }
