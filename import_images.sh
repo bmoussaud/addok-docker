@@ -4,10 +4,10 @@ set -ex
 ACR_NAME="$1"
 
 if [ -z "$ACR_NAME" ]; then
-    echo "Usage: $0 <acr-name>"
-    exit 1
+    ACR_NAME=$(azd config get-value ACR_NAME)
 fi
 # Log in to ACR
+echo "Logging in to Azure Container Registry: $ACR_NAME"
 az acr login --name "$ACR_NAME"
 
 # Pull the image from Docker Hub

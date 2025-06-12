@@ -47,9 +47,8 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 
 // Container Apps Environment
 resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
-  name: environmentName
+  name: 'addok-${environmentName}'
   location: location
-
   properties: {
     appLogsConfiguration: {
       destination: 'log-analytics'
@@ -140,8 +139,6 @@ resource addokRegistry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
     publicNetworkAccess: 'Enabled'
   }
 }
-
-
 
 resource addocAcrPull 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = {
   name: 'addock-acr-pull'

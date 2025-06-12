@@ -2,12 +2,13 @@
 
 # Usage: ./upload.sh <resource-group> <account-name>
 #set -x
-if [ -z "$1" ] || [ -z "$2" ]; then
-  echo "Usage: $0 <resource-group> <account-name>"
-  exit 1
-fi
 RESOURCE_GROUP="$1"
 ACCOUNT_NAME="$2"
+if [ -z "$1" ] || [ -z "$2" ]; then
+  RESOURCE_GROUP=$(azd config get-value AZURE_RESOURCE_GROUP)
+  ACCOUNT_NAME=$(azd config get-value STORAGE_ACCOUNT_NAME)
+fi
+
 
 # Get the storage account key
 accountKey=$(az storage account keys list --account-name "$ACCOUNT_NAME" --resource-group "$RESOURCE_GROUP" --query [0].value -o tsv)

@@ -7,9 +7,11 @@ infra:
 #  path: infra
 
 # Services configuration  
-#services:
-#  addok:
-#    project: .
-#    language: docker
-#    host: containerapp
+
+# Post-provisioning steps
+hooks:
+  postprovision:
+    shell: sh
+    run: ./import_images.sh ${ACR_NAME}
+    interactive: true
 
