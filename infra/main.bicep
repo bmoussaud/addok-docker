@@ -184,6 +184,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 
     }
     template: {
+      
       containers: [
         {
           name: 'addok'
@@ -196,10 +197,10 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
             { name: 'REDIS_HOST', value: addokRedisApp.name }
             { name: 'REDIS_PORT', value: '6379' }
-            { name: 'SQLITE_DB_PATH', value: '/tmp/addok.db' }
+            { name: 'SQLITE_DB_PATH', value: '/data/my_addok.db' }
             { name: 'ADDOK_CONFIG_PATH', value: '/etc/addok/addok.cfg' }
             { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
-            { name: 'ADDOK_LOG_LEVEL', value: 'DEBUG' }
+            { name: 'RESTART', value: '2' }
           ]
           resources: {
             cpu: 1
@@ -238,11 +239,12 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             }
           ]
           volumeMounts: [
-            /* {
+              {
               volumeName: 'share-volume'
-              mountPath: '/data'
-              subPath: 'data'
-            } */
+              mountPath: '/daily'
+              subPath: 'daily'
+            } 
+             
             {
               volumeName: 'share-volume'
               mountPath: '/etc/addok'
@@ -277,6 +279,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   dependsOn: [
     containerEnv::addoklogfileshare
     containerEnv::addokfileshare
+    
   ]
 }
 
@@ -310,6 +313,10 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'addok-redis'
           image: '${addokRegistry.properties.loginServer}/etalab/addok-redis'
+          env: [
+           
+            { name: 'RESTART', value: '3' }
+          ]
           resources: {
             cpu: 1
             memory: '2.0Gi'
@@ -346,26 +353,15 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
               }
             }
           ]
-          /* volumeMounts: [
-            {
-              volumeName: 'share-volume'
-              mountPath: '/data'
-              subPath: 'redis'
-            }
-          ] */
+
+          
         }
       ]
       scale: {
         minReplicas: 1
         maxReplicas: 1
       }
-      volumes: [
-        {
-          name: 'share-volume'
-          storageType: 'AzureFile'
-          storageName: 'addokfileshare'
-        }
-      ]
+    
     }
   }
   dependsOn: [
@@ -413,6 +409,103 @@ resource ngnix 'Microsoft.App/containerApps@2024-03-01' = {
           }
         }
       ]
+    }
+  }
+  dependsOn: [
+    containerEnv::addoklogfileshare
+    containerEnv::addokfileshare
+  ]
+}
+
+
+
+// Container App Job: importer, triggered every 10 minutes
+resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
+  name: 'addokimporter'
+  location: location
+  properties: {
+    environmentId: containerEnv.id
+    configuration: {
+      triggerType: 'Schedule'
+      replicaTimeout: 600 // 10 minutes
+     
+      scheduleTriggerConfig: {
+        cronExpression: '*/5 * * * *'
+        parallelism: 1
+      }
+
+      registries: [
+        {
+          identity: addocAcrPull.id
+          server: addokRegistry.properties.loginServer
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'importer'
+          image: '${addokRegistry.properties.loginServer}/etalab/addok'
+          command: ['/bin/sh']
+          args: [
+            '-c'
+            '/daily/m_addok_importer.sh'
+            //'echo "Addok import initialization...." && ls -l /daily/gtm.json && apt update -y && apt install redis-tools -y && redis-cli -h $REDIS_HOST ping && addok batch /daily/gtm.json && echo "----ngrams" && addok ngrams && echo "Addok import initialization completed."'
+          ]
+          env: [
+            { name: 'WORKERS', value: string(WORKERS) }
+            { name: 'WORKER_TIMEOUT', value: string(WORKER_TIMEOUT) }
+            { name: 'LOG_QUERIES', value: string(LOG_QUERIES)}
+            { name: 'LOG_NOT_FOUND', value: string(LOG_NOT_FOUND) }
+            { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
+            { name: 'REDIS_HOST', value: addokRedisApp.name }
+            { name: 'REDIS_PORT', value: '6379' }
+            { name: 'SQLITE_DB_PATH', value: '/tmp/my_addok.db' }
+            { name: 'ADDOK_CONFIG_PATH', value: '/etc/addok/addok.cfg' }
+            { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
+            { name: 'RESTART', value: '2' }
+          ]
+          resources: {
+            cpu: 1
+            memory: '2.0Gi'
+          }
+          volumeMounts: [
+            {
+              volumeName: 'share-volume'
+              mountPath: '/daily'
+              subPath: 'daily'
+            } 
+            {
+              volumeName: 'share-volume'
+              mountPath: '/etc/addok'
+              subPath: 'addok'
+            }
+            {
+              volumeName: 'logs-volume'
+              mountPath: '/logs'
+            }
+            
+          ]
+        }
+      ]
+      volumes: [
+        {
+          name: 'share-volume'
+          storageType: 'AzureFile'
+          storageName: 'addokfileshare'
+        }
+        {
+          name: 'logs-volume'
+          storageType: 'AzureFile'
+          storageName: 'addoklogfileshare'
+        }
+      ]
+    }
+  }
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${addocAcrPull.id}': {}
     }
   }
   dependsOn: [

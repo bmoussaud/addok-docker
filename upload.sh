@@ -5,10 +5,11 @@
 RESOURCE_GROUP="$1"
 ACCOUNT_NAME="$2"
 if [ -z "$1" ] || [ -z "$2" ]; then
-  RESOURCE_GROUP=$(azd config get-value AZURE_RESOURCE_GROUP)
-  ACCOUNT_NAME=$(azd config get-value STORAGE_ACCOUNT_NAME)
+  RESOURCE_GROUP=$(azd env get-value AZURE_RESOURCE_GROUP)
+  ACCOUNT_NAME=$(azd env get-value STORAGE_ACCOUNT_NAME)
 fi
-
+echo "Using Resource Group: $RESOURCE_GROUP"
+echo "Using Storage Account Name: $ACCOUNT_NAME"
 
 # Get the storage account key
 accountKey=$(az storage account keys list --account-name "$ACCOUNT_NAME" --resource-group "$RESOURCE_GROUP" --query [0].value -o tsv)
@@ -44,6 +45,7 @@ set -x
 az storage directory create --share-name addokfileshare --name addok --account-name "$ACCOUNT_NAME" --account-key "$accountKey"
 az storage directory create --share-name addokfileshare --name redis --account-name "$ACCOUNT_NAME" --account-key "$accountKey"
 az storage directory create --share-name addokfileshare --name data --account-name "$ACCOUNT_NAME" --account-key "$accountKey"
+az storage directory create --share-name addokfileshare --name daily --account-name "$ACCOUNT_NAME" --account-key "$accountKey"
 set +x
 echo "Uploading all files from addok-data directory to Azure File Share..."
 
@@ -51,5 +53,8 @@ set -x
 az storage file upload --source "addok-data/addok.conf" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "addok/addok.conf"
 az storage file upload --source "addok-data/dump.rdb" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "redis/dump.rdb"
 az storage file upload --source "addok-data/addok.db" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "data/addok.db"
+az storage file upload --source "addok-data/gtm.json" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "daily/gtm.json"
+az storage file upload --source "m_addok_importer.sh" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "daily/m_addok_importer.sh"
+
 set +x
 echo "All files uploaded successfully to Azure File Share."
