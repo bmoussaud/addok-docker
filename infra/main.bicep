@@ -202,6 +202,53 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 
     }
     template: {
+      initContainers:[
+        {
+          name: 'addok-importer'
+          image: '${addokRegistry.properties.loginServer}/etalab/addok'
+          command: ['/bin/bash']
+          args: [
+            '-c'
+            '/daily/m_addok_importer.sh'
+          ]
+          env: [
+            { name: 'WORKERS', value: string(WORKERS) }
+            { name: 'WORKER_TIMEOUT', value: string(WORKER_TIMEOUT) }
+            { name: 'LOG_QUERIES', value: string(LOG_QUERIES)}
+            { name: 'LOG_NOT_FOUND', value: string(LOG_NOT_FOUND) }
+            { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
+            { name: 'REDIS_HOST', value: addokRedisApp.name }
+            { name: 'REDIS_PORT', value: '6379' }
+            { name: 'SQLITE_DB_PATH', value: '/tmp/my_addok.db' }
+            { name: 'ADDOK_CONFIG_PATH', value: '/etc/addok/addok.cfg' }
+            { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
+            { name: 'RESTART', value: '2' }
+          ]
+          resources: {
+            cpu: 1
+            memory: '2.0Gi'
+          }
+          
+          volumeMounts: [
+              {
+              volumeName: 'share-volume'
+              mountPath: '/daily'
+              subPath: 'daily'
+            } 
+             
+            {
+              volumeName: 'share-volume'
+              mountPath: '/etc/addok'
+              subPath: 'addok'
+            }
+            {
+              volumeName: 'logs-volume'
+              mountPath: '/logs'
+            }
+          ]
+        }
+
+      ]
       
       containers: [
         {
@@ -274,7 +321,6 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             }
           ]
         }
-        
       ]
       scale: {
         minReplicas: 1

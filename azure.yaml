@@ -20,6 +20,7 @@ services:
     project: addok
     host: containerapp
     language: python
+    remoteBuild: true
   #addok-importer:
   #  project: addok-importer
   #  host: containerapp
