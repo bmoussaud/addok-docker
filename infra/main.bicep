@@ -182,6 +182,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
       '${addocAcrPull.id}': {}
     }
   }
+  tags: { 'azd-service-name': 'addok' }
   properties: {
     managedEnvironmentId: containerEnv.id
     workloadProfileName: 'appProfile'
@@ -310,6 +311,7 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
       '${addocAcrPull.id}': {}
     }
   }
+  tags: { 'azd-service-name': 'addok-redis' }
   properties: {
     managedEnvironmentId: containerEnv.id
     workloadProfileName: 'appProfile'
@@ -398,6 +400,7 @@ resource ngnix 'Microsoft.App/containerApps@2024-03-01' = {
       '${addocAcrPull.id}': {}
     }
   }
+  
   properties: {
     managedEnvironmentId: containerEnv.id
     workloadProfileName: 'appProfile'
@@ -421,7 +424,7 @@ resource ngnix 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'ngnix'
-          image: '${addokRegistry.properties.loginServer}/etalab/nginx'
+          image: 'nginx'
           resources: {
             cpu: 1
             memory: '2.0Gi'
@@ -526,3 +529,4 @@ resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
 output ADDOK_FQDN string = addokApp.properties.configuration.ingress.fqdn
 output STORAGE_ACCOUNT_NAME string = addokData.name
 output ACR_NAME string = addokRegistry.name
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = addokRegistry.properties.loginServer

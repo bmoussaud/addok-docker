@@ -13,5 +13,19 @@ hooks:
   postprovision:
     shell: sh
     run: ./import_images.sh ${ACR_NAME}
-    interactive: true
+    interactive: false
+  
+services:
+  addok:
+    project: addok
+    host: containerapp
+    language: python
+  #addok-importer:
+  #  project: addok-importer
+  #  host: containerapp
+  #  language: python
 
+  addok-redis:
+    project: addok-redis
+    host: containerapp
+    language: python
