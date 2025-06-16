@@ -202,7 +202,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 
     }
     template: {
-      initContainers:[
+      /* initContainers:[
         {
           name: 'addok-importer'
           image: '${addokRegistry.properties.loginServer}/etalab/addok'
@@ -248,7 +248,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           ]
         }
 
-      ]
+      ] */
       
       containers: [
         {
