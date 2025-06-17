@@ -16,17 +16,17 @@ hooks:
     interactive: false
   
 services:
-  addok:
-    project: addok
-    host: containerapp
-    language: python
-    remoteBuild: true
-  #addok-importer:
-  #  project: addok-importer
+  #addok:
+  #  project: addok
   #  host: containerapp
   #  language: python
+  #  remoteBuild: true
+  # addok-importer:
+  #   project: addok-importer
+  #   host: containerapp
+  #   language: python
 
-  addok-redis:
-    project: addok-redis
-    host: containerapp
-    language: python
+  # addok-redis:
+  #   project: addok-redis
+  #   host: containerapp
+  #   language: python

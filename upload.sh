@@ -51,8 +51,8 @@ echo "Uploading all files from addok-data directory to Azure File Share..."
 
 set -x
 az storage file upload --source "addok-data/addok.conf" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "addok/addok.conf"
-az storage file upload --source "addok-data/dump.rdb" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "redis/dump.rdb"
-az storage file upload --source "addok-data/addok.db" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "data/addok.db"
+#az storage file upload --source "addok-data/dump.rdb" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "redis/dump.rdb"
+#az storage file upload --source "addok-data/addok.db" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "data/addok.db"
 az storage file upload --source "addok-data/gtm.json" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "daily/gtm.json"
 az storage file upload --source "m_addok_importer.sh" --share-name addokfileshare --account-name $ACCOUNT_NAME --account-key "$accountKey" --path "daily/m_addok_importer.sh"
 
