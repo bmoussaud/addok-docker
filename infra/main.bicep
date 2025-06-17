@@ -49,6 +49,12 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
   name: 'addok-${environmentName}'
   location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${addocAcrPull.id}': {}
+    }
+  }
   properties: {
     appLogsConfiguration: {
       destination: 'log-analytics'
@@ -57,7 +63,6 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
         sharedKey: logAnalytics.listKeys().primarySharedKey
       }
     }
-   
   }
   resource addokfileshare 'storages@2025-02-02-preview' = {
     name: 'addokfileshare'
@@ -150,21 +155,12 @@ resource uaiRbacAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 
-
-
 resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   name: 'addokapp'
   location: location
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${addocAcrPull.id}': {}
-    }
-  }
   tags: { 'azd-service-name-not-used': 'addok-importer' }
   properties: {
     managedEnvironmentId: containerEnv.id
-    
     configuration: {
       ingress: {
         external: true
@@ -180,15 +176,13 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
       }
       registries: [
         {
-          identity: addocAcrPull.id
           server: addokRegistry.properties.loginServer
+          identity: addocAcrPull.id
         }
       ]
-
     }
     template: {
       containers: [
-       
         {
           name: 'addok'
           image: '${addokRegistry.properties.loginServer}/etalab/addok'
@@ -277,8 +271,6 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
             { name: 'RESTART', value: '24070' }
           ]
-          
-          
           volumeMounts: [
               {
               volumeName: 'share-volume'
@@ -335,16 +327,9 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'addokredisapp'
   location: location
-   identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${addocAcrPull.id}': {}
-    }
-  }
   tags: { 'azd-service-name': 'addok-redis' }
   properties: {
     managedEnvironmentId: containerEnv.id
-  
     configuration: {
       ingress: {
         external: false
@@ -353,8 +338,8 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
       registries: [
         {
-          identity: addocAcrPull.id
           server: addokRegistry.properties.loginServer
+          identity: addocAcrPull.id
         }
       ]
     }
@@ -363,11 +348,6 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
         {
           name: 'addok-redis'
           image: '${addokRegistry.properties.loginServer}/etalab/addok-redis'
-          env: [
-           
-            { name: 'RESTART', value: '3' }
-          ]
-         
           probes: [
             {
               type: 'Startup'
@@ -419,27 +399,13 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
 resource ngnix 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ngnix'
   location: location
-   identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${addocAcrPull.id}': {}
-    }
-  }
-  
   properties: {
     managedEnvironmentId: containerEnv.id
-    
     configuration: {
       ingress: {
         external: false
         targetPort: 80
       }
-      registries: [
-        {
-          identity: addocAcrPull.id
-          server: addokRegistry.properties.loginServer
-        }
-      ]
     }
     template: {
       scale: {
@@ -469,17 +435,10 @@ resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
     configuration: {
       triggerType: 'Schedule'
       replicaTimeout: 600 // 10 minutes
-     
       scheduleTriggerConfig: {
         cronExpression: '*/2 * * * *'
         parallelism: 1
       }
-      registries: [
-        {
-          identity: addocAcrPull.id
-          server: addokRegistry.properties.loginServer
-        }
-      ]
     }
     template: {
       containers: [
@@ -496,12 +455,6 @@ resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
         }
       ]
       
-    }
-  }
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${addocAcrPull.id}': {}
     }
   }
   dependsOn: [
