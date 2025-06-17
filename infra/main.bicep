@@ -13,6 +13,8 @@
 param environmentName string
 
 param location string
+param ACR_NAME string
+param ACR_ADDOK_IMPORTER_IMAGE_TAG string = 'latest' // Default tag for the Addok importer image in ACR
 // param resourceGroupName string // Not used, removed to fix lint error
 param WORKERS int
 param WORKER_TIMEOUT int
@@ -71,7 +73,7 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
         accountName: addokData.name
         accountKey: addokData.listKeys().keys[0].value
         accessMode: 'ReadWrite'
-        shareName: 'addokfileshare'
+        shareName:  addokData::fileService::addokFileShare.name
       }
     }
   }
@@ -83,7 +85,7 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
         accountName: addokData.name
         accountKey: addokData.listKeys().keys[0].value
         accessMode: 'ReadWrite'
-        shareName: 'addoklogfileshare'
+        shareName:  addokData::fileService::addokLogFileShare.name
       }
     }
   }
@@ -105,28 +107,36 @@ resource addokData 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     publicNetworkAccess: 'Enabled'
     largeFileSharesState: 'Enabled'
   }
-}
 
-// Azure File Share for Addok DB and config
-resource addokFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
-  name: '${addokData.name}/default/addokfileshare'
-  properties: {
-    enabledProtocols: 'SMB'
-    shareQuota: 10 // 10 GiB, adjust as needed
-    accessTier: 'Hot'
+  // Nested file service for Addok DB and config
+  resource fileService 'fileServices@2023-05-01' = {
+    name: 'default'
+
+    resource addokFileShare 'shares@2023-05-01' = {
+      name: 'addokfileshare'
+      properties: {
+        enabledProtocols: 'SMB'
+        shareQuota: 10 // 10 GiB, adjust as needed
+        accessTier: 'Hot'
+      }
+    }
+
+    // Nested file share for Addok logs
+    resource addokLogFileShare 'shares@2023-05-01' = {
+      name: 'addoklogfileshare'
+      properties: {
+        enabledProtocols: 'SMB'
+        shareQuota: 10 // 10 GiB, adjust as needed
+        accessTier: 'Hot'
+      }
+    }
   }
 }
-
-resource addokLogFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
-  name: '${addokData.name}/default/addoklogfileshare'
-  properties: {
-    enabledProtocols: 'SMB'
-    shareQuota: 10 // 10 GiB, adjust as needed
-    accessTier: 'Hot'
-  }
+resource addokRegistry 'Microsoft.ContainerRegistry/registries@2025-04-01' existing = {
+  name: ACR_NAME
 }
 
-resource addokRegistry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
+/* resource addokRegistry2 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
   name: 'addok${resourceToken}reg'
   location: location
   sku: {
@@ -136,7 +146,7 @@ resource addokRegistry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
     adminUserEnabled: true
     publicNetworkAccess: 'Enabled'
   }
-}
+} */
 
 resource addocAcrPull 'Microsoft.ManagedIdentity/userAssignedIdentities@2022-01-31-preview' = {
   name: 'addock-acr-pull'
@@ -153,7 +163,6 @@ resource uaiRbacAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     principalType: 'ServicePrincipal'
   }
 }
-
 
 resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   name: 'addokapp'
@@ -256,7 +265,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
         {
           name: 'addok-importer'
-          image: '${addokRegistry.properties.loginServer}/etalab/addok-importer-aca:24070'
+          image: '${addokRegistry.properties.loginServer}/etalab/addok-importer-aca:${ACR_ADDOK_IMPORTER_IMAGE_TAG}'
           
           env: [
             { name: 'WORKERS', value: string(WORKERS) }
@@ -269,7 +278,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'SQLITE_DB_PATH', value: '/localdata/my_addok.db' }
             { name: 'ADDOK_CONFIG_PATH', value: '/etc/addok/addok.cfg' }
             { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
-            { name: 'RESTART', value: '24070' }
+            { name: 'TAG', value: ACR_ADDOK_IMPORTER_IMAGE_TAG }
           ]
           volumeMounts: [
               {

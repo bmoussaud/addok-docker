@@ -10,11 +10,16 @@ infra:
 
 # Post-provisioning steps
 hooks:
-  postprovision:
+  postpackage:
     shell: sh
     run: ./import_images.sh ${ACR_NAME}
     interactive: false
-  
+  predeploy:
+    shell: sh
+    run: ./upload.sh
+    interactive: false
+
+
 services:
   #addok:
   #  project: addok

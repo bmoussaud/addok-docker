@@ -89,21 +89,43 @@ curl "http://localhost:7878/search?q=1+rue+de+la+paix+paris"
 
 
 
-
- 
-
 # Azure Déploiement
 
 ## Architecture déployée (`infra/main.bicep`)
 
-Le fichier `main.bicep` provisionne automatiquement l’infrastructure suivante sur Azure :
-- **Azure Container Apps Environment** : Environnement d’exécution pour les applications conteneurisées.
-- **Container Apps** :
-  - `addok` (service principal exposé sur le port 7878)
-  - `addok-redis` (service Redis pour Addok)
-- **Stockage Azure** :
-  - Compte de stockage pour les données Addok et les logs, avec partages de fichiers Azure (Azure File Share) montés dans les conteneurs.
-- **Log Analytics Workspace** & **Application Insights** : Pour la collecte et la supervision des logs et métriques.
+```bash
+azd auth login
+azd env new test                             #replacer par vos propres valeurs
+azd env set AZURE_LOCATION francecentral     #replacer par vos propres valeurs
+azd env set ACR_NAME addokdev1235            #replacer par vos propres valeurs
+azd env set AZURE_RESOURCE_GROUP test-addok  #replacer par vos propres valeurs
+auth login
+```
+
+```bash
+az login
+az group create --location $(azd env get-value AZURE_LOCATION) --resource-group $(azd env get-value AZURE_RESOURCE_GROUP)
+az acr create -n $(azd env get-value ACR_NAME) -g $(azd env get-value AZURE_RESOURCE_GROUP) --sku Basic
+azd up
+```
+
+Le fichier `infra/main.bicep` provisionne les ressources suivantes :
+
+- **Log Analytics Workspace** (`Microsoft.OperationalInsights/workspaces`)
+- **Application Insights** (`Microsoft.Insights/components`)
+- **Azure Container Apps Environment** (`Microsoft.App/managedEnvironments`)
+- **Azure Storage Account** pour les données Addok (`Microsoft.Storage/storageAccounts`)
+  - **Azure File Share** pour les données (`fileServices/shares`)
+  - **Azure File Share** pour les logs (`fileServices/shares`)
+- **Azure Container Registry** (`Microsoft.ContainerRegistry/registries`)
+- **Managed Identity** pour l'accès au registre (`Microsoft.ManagedIdentity/userAssignedIdentities`)
+- **Role Assignment** pour l'accès ACR (`Microsoft.Authorization/roleAssignments`)
+- **Container App Addok** (`Microsoft.App/containerApps`)
+- **Container App Redis** (`Microsoft.App/containerApps`)
+- **Container App Nginx** (`Microsoft.App/containerApps`)
+- **Job Importer** (`Microsoft.App/jobs`)
+
+L'ensemble de ces ressources permet de déployer une stack Addok scalable et managée sur Azure.
 
 ## Procédure de déploiement
 
@@ -254,7 +276,7 @@ Ce guide explique comment déployer l’infrastructure Addok (équivalent du fic
 
 - Ajoutez le conteneur `etalab/addok-redis`. Aller dans le Container `addokapp`, `Containers`, `Créer un nouveau container`. 
    - image alternative pour la configuration : mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
-- Configurez les probes sur le port 6379 et mettre la variable d'env PORT=6379
+- Configurez les probes sur le port 6379 et mettre la variable d_env PORT=6379
 - Montez le volume Azure File Share sur `/data`.
 - ![Capture d’écran - Container App Redis](screenshots/08-redis-app.png)
 ---

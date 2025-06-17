@@ -23,6 +23,7 @@ docker tag "$ACR_NAME.azurecr.io/etalab/addok-importer-aca:latest" "$ACR_NAME.az
 docker push "$ACR_NAME.azurecr.io/etalab/addok-importer-aca:$RAND_TAG"
 echo "Image $ACR_NAME.azurecr.io/etalab/addok-importer-aca:$RAND_TAG pushed successfully."
 azd env set ACR_ADDOK_IMPORTER_IMAGE "$ACR_NAME.azurecr.io/etalab/addok-importer-aca:$RAND_TAG"
+azd env set ACR_ADDOK_IMPORTER_IMAGE_TAG "$RAND_TAG"
 
 # Check if the image already exists in ACR
 if az acr repository show-tags --name "$ACR_NAME" --repository etalab/addok --query "contains(@, 'latest')" -o tsv | grep -q true; then
