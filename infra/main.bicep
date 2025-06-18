@@ -73,7 +73,7 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
         accountName: addokData.name
         accountKey: addokData.listKeys().keys[0].value
         accessMode: 'ReadWrite'
-        shareName:  addokData::fileService::addokFileShare.name
+        shareName: addokData::fileService::addokFileShare.name
       }
     }
   }
@@ -85,12 +85,11 @@ resource containerEnv 'Microsoft.App/managedEnvironments@2025-02-02-preview' = {
         accountName: addokData.name
         accountKey: addokData.listKeys().keys[0].value
         accessMode: 'ReadWrite'
-        shareName:  addokData::fileService::addokLogFileShare.name
+        shareName: addokData::fileService::addokLogFileShare.name
       }
     }
   }
 }
-
 
 // Storage Account for addok-data
 resource addokData 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -106,6 +105,14 @@ resource addokData 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     supportsHttpsTrafficOnly: true
     publicNetworkAccess: 'Enabled'
     largeFileSharesState: 'Enabled'
+  }
+
+  resource queueServices 'queueServices' = {
+    resource queue 'queues' = {
+      name: 'addok-events'
+      properties: {}
+    }
+    name: 'default'
   }
 
   // Nested file service for Addok DB and config
@@ -179,7 +186,6 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             targetPort: 8000
             external: false
             exposedPort: 8000
-            
           }
         ]
       }
@@ -198,7 +204,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           env: [
             { name: 'WORKERS', value: string(WORKERS) }
             { name: 'WORKER_TIMEOUT', value: string(WORKER_TIMEOUT) }
-            { name: 'LOG_QUERIES', value: string(LOG_QUERIES)}
+            { name: 'LOG_QUERIES', value: string(LOG_QUERIES) }
             { name: 'LOG_NOT_FOUND', value: string(LOG_NOT_FOUND) }
             { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
             { name: 'REDIS_HOST', value: addokRedisApp.name }
@@ -208,7 +214,7 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'ADDOK_LOG_PATH', value: '/logs/addok.log' }
             { name: 'RESTART', value: '2' }
           ]
-         
+
           probes: [
             {
               type: 'Startup'
@@ -246,12 +252,12 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
               volumeName: 'share-volume'
               mountPath: '/daily'
               subPath: 'daily'
-            } 
+            }
             {
               volumeName: 'addok-data-volume'
               mountPath: '/localdata'
-            } 
-             
+            }
+
             {
               volumeName: 'share-volume'
               mountPath: '/etc/addok'
@@ -266,11 +272,11 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         {
           name: 'addok-importer'
           image: '${addokRegistry.properties.loginServer}/etalab/addok-importer-aca:${ACR_ADDOK_IMPORTER_IMAGE_TAG}'
-          
+
           env: [
             { name: 'WORKERS', value: string(WORKERS) }
             { name: 'WORKER_TIMEOUT', value: string(WORKER_TIMEOUT) }
-            { name: 'LOG_QUERIES', value: string(LOG_QUERIES)}
+            { name: 'LOG_QUERIES', value: string(LOG_QUERIES) }
             { name: 'LOG_NOT_FOUND', value: string(LOG_NOT_FOUND) }
             { name: 'SLOW_QUERIES', value: string(SLOW_QUERIES) }
             { name: 'REDIS_HOST', value: addokRedisApp.name }
@@ -281,16 +287,16 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'TAG', value: ACR_ADDOK_IMPORTER_IMAGE_TAG }
           ]
           volumeMounts: [
-              {
+            {
               volumeName: 'share-volume'
               mountPath: '/daily'
               subPath: 'daily'
-            } 
+            }
             {
               volumeName: 'addok-data-volume'
               mountPath: '/localdata'
-            } 
-             
+            }
+
             {
               volumeName: 'share-volume'
               mountPath: '/etc/addok'
@@ -308,9 +314,9 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         maxReplicas: 1
       }
       volumes: [
-         {
+        {
           name: 'addok-data-volume'
-          storageType: 'EmptyDir'        
+          storageType: 'EmptyDir'
         }
         {
           name: 'share-volume'
@@ -325,11 +331,10 @@ resource addokApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
       ]
     }
   }
- 
+
   dependsOn: [
     containerEnv::addoklogfileshare
     containerEnv::addokfileshare
-    
   ]
 }
 
@@ -390,13 +395,11 @@ resource addokRedisApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
           ]
         }
-        
       ]
       scale: {
         minReplicas: 1
         maxReplicas: 1
       }
-    
     }
   }
   dependsOn: [
@@ -435,7 +438,6 @@ resource ngnix 'Microsoft.App/containerApps@2024-03-01' = {
   ]
 }
 
-
 resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
   name: 'addokimporter'
   location: location
@@ -463,7 +465,6 @@ resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
           ]
         }
       ]
-      
     }
   }
   dependsOn: [
@@ -471,6 +472,106 @@ resource importerJob 'Microsoft.App/jobs@2025-01-01' = {
     containerEnv::addokfileshare
   ]
 }
+
+module systemTopic 'br/public:avm/res/event-grid/system-topic:0.6.2' = {
+  name: 'systemTopicDeployment'
+  params: {
+    // Required parameters
+    name: 'azrambi-event-grid-topic'
+    source: addokData.id
+    topicType: 'Microsoft.Storage.StorageAccounts'
+    // Non-required parameters
+    location: location
+    eventSubscriptions: [
+      {
+        destination: {
+          endpointType: 'StorageQueue'
+          properties: {
+            queueMessageTimeToLiveInSeconds: 86400
+            resourceId: addokData.id
+            queueName: addokData::queueServices::queue.name
+          }
+        }
+        eventDeliverySchema: 'CloudEventSchemaV1_0'
+        expirationTimeUtc: '2099-01-01T11:00:21.715Z'
+        filter: {
+          includedEventTypes: [
+            'Microsoft.Storage.FileCreated'
+            'Microsoft.Storage.FileDeleted'
+            'Microsoft.Storage.FileRenamed'
+          ]
+          enableAdvancedFilteringOnArrays: true
+          isSubjectCaseSensitive: false
+        }
+        name: 'addok-event-subscription'
+        retryPolicy: {
+          eventTimeToLive: '120'
+          maxDeliveryAttempts: 10
+        }
+      }
+    ]
+  }
+}
+
+/*
+
+
+// Event Grid System Topic for storage account events
+resource storageEventGridTopic 'Microsoft.EventGrid/systemTopics@2022-06-15' = {
+  name: '${resourceToken}-storage-events'
+  location: location
+  properties: {
+    source: addokData.id
+    topicType: 'Microsoft.Storage.StorageAccounts'
+  }
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${addocAcrPull.id}': {}
+    }
+  }
+  
+  // Event subscription for blob created events
+  resource fileCreatedSubscription 'eventSubscriptions@2022-06-15' = {
+    name: 'file-created-events'
+    properties: {
+      destination: {
+        endpointType: 'ServiceBusQueue'
+        properties: {
+          resourceId: addokData::queueServices::queue.id
+        }
+      }
+      filter: {
+        includedEventTypes: [
+          'Microsoft.Storage.FileCreated'
+          'Microsoft.Storage.FileDeleted'
+          'Microsoft.Storage.FileRenamed'
+        ]
+        //subjectBeginsWith: '/fileServices/default/containers/uploads/'
+        enableAdvancedFilteringOnArrays: false
+        isSubjectCaseSensitive: false
+      }
+      eventDeliverySchema: 'EventGridSchema'
+      retryPolicy: {
+        maxDeliveryAttempts: 3
+        eventTimeToLiveInMinutes: 1440 // 24 hours
+      }
+      deliveryWithResourceIdentity: {
+        identity: {
+          type: 'UserAssigned'
+          userAssignedIdentity: addocAcrPull.id
+        }
+        destination: {
+          endpointType: 'ServiceBusQueue'
+          properties: {
+            resourceId: addokData::queueServices::queue.id
+          }
+        }
+      }
+    }
+  }
+}
+*/
 
 output ADDOK_FQDN string = addokApp.properties.configuration.ingress.fqdn
 output STORAGE_ACCOUNT_NAME string = addokData.name

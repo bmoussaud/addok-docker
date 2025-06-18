@@ -26,10 +26,10 @@ services:
   #  host: containerapp
   #  language: python
   #  remoteBuild: true
-  # addok-importer:
+  #addok-importer:
   #   project: addok-importer
   #   host: containerapp
-  #   language: python
+  #   language: docker
 
   # addok-redis:
   #   project: addok-redis
