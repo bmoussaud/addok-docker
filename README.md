@@ -91,6 +91,8 @@ curl "http://localhost:7878/search?q=1+rue+de+la+paix+paris"
 
 # Azure Déploiement
 
+![Azure Architecture](addok-azure.png)
+
 ## Architecture déployée (`infra/main.bicep`)
 
 ```bash
@@ -121,9 +123,11 @@ Le fichier `infra/main.bicep` provisionne les ressources suivantes :
 - **Managed Identity** pour l'accès au registre (`Microsoft.ManagedIdentity/userAssignedIdentities`)
 - **Role Assignment** pour l'accès ACR (`Microsoft.Authorization/roleAssignments`)
 - **Container App Addok** (`Microsoft.App/containerApps`)
+   - image `addock` ecoute port 7878
+   - image `addock_importer` port 8000 expose une api pour déclencher le chargement du fichier JSON [addok-importer/api.py](addok-importer/api.py)
 - **Container App Redis** (`Microsoft.App/containerApps`)
 - **Container App Nginx** (`Microsoft.App/containerApps`)
-- **Job Importer** (`Microsoft.App/jobs`)
+- **Job Importer** (`Microsoft.App/jobs`) Déclenchment via une expression cron (chaque 2 minutes dans l'exemple) et declenchement `addok_importer:8000/upload` via une command `curl`
 
 L'ensemble de ces ressources permet de déployer une stack Addok scalable et managée sur Azure.
 
