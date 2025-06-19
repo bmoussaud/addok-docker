@@ -1,0 +1,17 @@
+# terraform.tfvars.example
+# Example configuration for Addok on Azure Container Apps
+# Copy this file to terraform.tfvars and update the values
+
+environment_name     = "addok-dev"
+location            = "East US"
+resource_group_name = "rg-addok-dev"
+resource_group_id   = "/subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/rg-addok-dev"
+acr_name            = "your-acr-name"
+
+# Optional configuration
+acr_addok_importer_image_tag = "latest"
+workers                      = 1
+worker_timeout              = 30
+log_queries                 = 1
+log_not_found               = 1
+slow_queries                = 200
